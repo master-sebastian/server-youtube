@@ -1,8 +1,10 @@
 const express = require('express')
 const app = express()
 const env = require('./env')
-
+const jwt = require('jsonwebtoken')
+const verifyToken = require('./middlewares/verifyToken')
 const { google } = require("googleapis")
+
 const service = google.youtube({
     version: 'v3',
     auth: env.apiKeyYoutube
@@ -11,11 +13,42 @@ const service = google.youtube({
 app.use(express.json()) // for parsing application/json
 app.use(express.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
 
-app.get("/api/search/videos", async (req, res)=>{
+app.post("/api/login", (req, res)=>{
+    
+    const { username, password } =  req.body
+
+    if(env.usersJWT.filter(user => user.username == username && user.password == password ).length > 0){
+        jwt.sign({
+            username,
+            password
+        },env.secretJWT,
+        {
+            expiresIn: env.expiresInJWT
+        },
+            (err, token)=>{
+               if(err){
+                   res.status(500).json({
+                       message: "Error generating token"
+                   })
+               }else{
+                   res.status(200).json({
+                       token
+                   })
+               } 
+            }
+        )
+    }else{
+        res.status(400).json({
+            message: "Invalid data"
+        })
+    }
+
+})
+    
+app.get("/api/search/videos", verifyToken, async (req, res)=>{
     let request = req
     let response = res
     let {channelId} = request.query
-    let {pageToken} = request.query
 
     let filter = {
         part: [
@@ -28,10 +61,6 @@ app.get("/api/search/videos", async (req, res)=>{
 
     filter.channelId = channelId
 
-    if(pageToken !== ""){
-        filter.pageToken = pageToken
-    }
-
     service.search.list(filter).then(res => {
         response.json(res.data)
     })
@@ -40,12 +69,11 @@ app.get("/api/search/videos", async (req, res)=>{
     });
 })
 
-app.get("/api/search/channel", async (req, res)=>{
+app.get("/api/search/channel", verifyToken, async (req, res)=>{
     let request = req
     let response = res
     let {q} = request.query
     let {channelId} = request.query
-    let {pageToken} = request.query
 
     let filter = {
         part: [
@@ -58,10 +86,6 @@ app.get("/api/search/channel", async (req, res)=>{
 
     filter.channelId = channelId
 
-    if(pageToken !== ""){
-        filter.pageToken = pageToken
-    }
-
     service.search.list(filter).then(res => {
         response.json(res.data)
     })
@@ -70,12 +94,11 @@ app.get("/api/search/channel", async (req, res)=>{
     });
 })
 
-app.get("/api/search/playlist", async (req, res)=>{
+app.get("/api/search/playlist", verifyToken, async (req, res)=>{
     let request = req
     let response = res
     let {q} = request.query
     let {channelId} = request.query
-    let {pageToken} = request.query
 
     let filter = {
         part: [
@@ -88,10 +111,6 @@ app.get("/api/search/playlist", async (req, res)=>{
 
     filter.channelId = channelId
 
-    if(pageToken !== ""){
-        filter.pageToken = pageToken
-    }
-
     service.search.list(filter).then(res => {
         response.json(res.data)
     })
@@ -100,7 +119,7 @@ app.get("/api/search/playlist", async (req, res)=>{
     });
 })
 
-app.get("/api/list/statistics", async (req, res)=>{
+app.get("/api/list/statistics", verifyToken, async (req, res)=>{
     let request = req
     let response = res
     let {videoId} = request.query
@@ -115,7 +134,7 @@ app.get("/api/list/statistics", async (req, res)=>{
     });
 })
 
-app.get("/api/list/snippet", async (req, res)=>{
+app.get("/api/list/snippet", verifyToken, async (req, res)=>{
     let request = req
     let response = res
     let {videoId} = request.query
