@@ -1,3 +1,5 @@
+const jwt = require('jsonwebtoken')
+const env = require('./../env')
 module.exports = (req, res, next) =>{
     const bearerHeader = req.headers['authorization'];
     if(typeof bearerHeader !== 'undefined'){
@@ -5,7 +7,13 @@ module.exports = (req, res, next) =>{
         if(fragmentBearerHeader.length == 2){
             const bearerToken = fragmentBearerHeader[1]
             req.token = bearerToken;
-            next()
+            // invalid token
+            jwt.verify(req.token, env.secretJWT, function(err, decoded) {
+                if(err){
+                    return res.sendStatus(403)
+                }
+                next()
+            });
         }else{
             res.sendStatus(404)
         }
